@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html th:lang="${wikiLang.toCode()}" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('dashboard.title')}"></head>
+<body>
+<header th:replace="~{layout :: nav}"></header>
+<div class="container">
+    <main role="main" class="pb-4">
+        <h1 class="mb-2" th:text="${m['dashboard.title']}">Dashboard</h1>
+        <p class="text-muted mb-4" th:text="${ui.t('dashboard.intro', wikiLang.toDisplayName())}">
+            Wikipedia summaries for 16 Polish voivodeships and world countries.
+        </p>
+
+        <div th:if="${syncMessage}" th:class="${syncSuccess == false} ? 'alert alert-warning alert-dismissible fade show' : 'alert alert-success alert-dismissible fade show'" role="alert">
+            <span th:text="${syncMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" th:attr="aria-label=${m['common.close']}"></button>
+        </div>
+
+        <div id="sync-result" th:classappend="${!status.isRunning() && status.completedAtUtc() != null && status.failed() > 0} ? '' : ' d-none'">
+            <div class="alert alert-warning" role="alert">
+                <div id="sync-result-summary">
+                    <th:block th:if="${!status.isRunning() && status.completedAtUtc() != null}"
+                              th:text="${ui.t('dashboard.lastSync', status.succeeded(), status.failed(), status.skipped())}">
+                        Last sync summary
+                    </th:block>
+                </div>
+                <ul id="sync-result-errors" class="mb-0 mt-2 small">
+                    <th:block th:if="${!status.isRunning()}">
+                        <li th:each="error, iter : ${status.errors()}" th:if="${iter.index < 15}" th:text="${error}"></li>
+                        <li th:if="${status.errors().size() > 15}" th:utext="${ui.t('dashboard.moreErrors', status.errors().size() - 15)}"></li>
+                    </th:block>
+                </ul>
+            </div>
+        </div>
+
+        <div th:if="${isFirstRun && !status.isRunning()}" class="alert alert-info" role="status" th:utext="${m['dashboard.firstRun']}">
+            Nothing has been fetched yet.
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <a th:href="@{/voivodeships}" class="stat-card card h-100 text-decoration-none text-reset">
+                    <div class="card-body">
+                        <h6 class="card-subtitle text-muted mb-2" th:text="${m['dashboard.voivodeships']}">Voivodeships</h6>
+                        <p class="display-6 mb-0"><span th:text="${voivodeshipsFetched}">0</span> / <span th:text="${voivodeshipCount}">16</span></p>
+                        <small class="text-muted" th:text="${m['dashboard.descriptionsFetched']}">descriptions fetched</small>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a th:href="@{/countries}" class="stat-card card h-100 text-decoration-none text-reset">
+                    <div class="card-body">
+                        <h6 class="card-subtitle text-muted mb-2" th:text="${m['dashboard.countries']}">Countries</h6>
+                        <p class="display-6 mb-0"><span th:text="${countriesFetched}">0</span> / <span th:text="${countryCount}">195</span></p>
+                        <small class="text-muted" th:text="${m['dashboard.descriptionsFetched']}">descriptions fetched</small>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h6 class="card-subtitle text-muted mb-2" th:text="${m['dashboard.lastFetch']}">Last fetch</h6>
+                        <p class="fs-5 mb-0" th:text="${lastFetchedAt}">never</p>
+                        <small class="text-muted" th:text="${m['dashboard.localTime']}">local time</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card h-100 border-primary">
+                    <div class="card-body d-flex flex-column justify-content-center">
+                        <form th:action="@{/sync}" method="post" id="sync-form">
+                            <button type="submit" class="btn btn-primary w-100" id="sync-button"
+                                    th:disabled="${status.isRunning()}">
+                                <span class="spinner-border spinner-border-sm me-1" id="sync-spinner"
+                                      th:classappend="${status.isRunning()} ? '' : ' d-none'"
+                                      role="status" aria-hidden="true"></span>
+                                <span id="sync-button-label" th:text="${status.isRunning()} ? ${m['dashboard.syncRunning']} : ${m['dashboard.syncButton']}">Synchronize with Wikipedia</span>
+                            </button>
+                        </form>
+                        <small class="text-muted mt-2" th:text="${m['dashboard.syncBackground']}">Runs in the background.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="sync-progress" class="mb-4" th:classappend="${status.isRunning()} ? '' : ' d-none'">
+            <div class="d-flex justify-content-between small text-muted mb-1">
+                <span id="sync-progress-label" th:text="${progressLabel}"></span>
+                <span id="sync-progress-percent" th:text="${status.isRunning()} ? ${#numbers.formatInteger(percent, 0)} + '%' : ''"></span>
+            </div>
+            <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" th:attr="aria-valuenow=${percent}">
+                <div id="sync-bar" class="progress-bar progress-bar-striped progress-bar-animated"
+                     th:style="'width: ' + ${percent} + '%'"></div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-baseline mb-3">
+            <h2 class="h4 mb-0" th:text="${m['dashboard.recentActivity']}">Recent activity</h2>
+            <a th:href="@{/logs}" th:text="${m['dashboard.viewAllLogs']}">View all logs</a>
+        </div>
+        <p th:if="${recentLogs.isEmpty()}" class="text-muted" th:text="${m['dashboard.noLogs']}">No log entries yet.</p>
+        <div th:unless="${recentLogs.isEmpty()}" class="table-responsive">
+            <table class="table table-sm table-striped align-middle">
+                <thead>
+                <tr>
+                    <th scope="col" th:text="${m['common.time']}">Time</th>
+                    <th scope="col" th:text="${m['common.level']}">Level</th>
+                    <th scope="col" th:text="${m['common.source']}">Source</th>
+                    <th scope="col" th:text="${m['common.message']}">Message</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="log : ${recentLogs}">
+                    <td class="text-nowrap" th:text="${log.createdAtLocal}"></td>
+                    <td><span class="badge" th:classappend="${log.levelBadgeClass}" th:text="${log.level}"></span></td>
+                    <td th:text="${log.source}"></td>
+                    <td th:text="${log.message}"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+<footer th:replace="~{layout :: footer}"></footer>
+<script th:inline="javascript">
+    WikiScrapper.dashboardSync({
+        initiallyRunning: /*[[${status.isRunning()}]]*/ false
+    });
+</script>
+</body>
+</html>

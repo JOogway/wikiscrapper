@@ -1,0 +1,90 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.1.0'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.ots'
+version = '0.0.1-SNAPSHOT'
+description = 'wikiscrapper'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-restclient'
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.1'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+    runtimeOnly 'com.h2database:h2'
+    runtimeOnly 'com.microsoft.sqlserver:mssql-jdbc'
+    runtimeOnly('com.microsoft.sqlserver:mssql-jdbc_auth:13.4.0.x64@dll')
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+    testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-restclient-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-thymeleaf-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+def nativeLibDir = layout.projectDirectory.dir('lib/native')
+
+tasks.register('copyJdbcAuthDll') {
+    dependsOn configurations.runtimeClasspath
+    inputs.files(configurations.runtimeClasspath)
+    outputs.dir(nativeLibDir)
+
+    doLast {
+        def nativeDir = nativeLibDir.asFile
+        nativeDir.mkdirs()
+
+        def authDll = configurations.runtimeClasspath.files.find { file ->
+            file.name.startsWith('mssql-jdbc_auth') && file.name.endsWith('.dll')
+        }
+        if (authDll == null) {
+            throw new GradleException('mssql-jdbc_auth DLL not found on runtime classpath')
+        }
+
+        def target = new File(nativeDir, authDll.name)
+        if (target.exists() && target.length() == authDll.length()) {
+            logger.lifecycle("JDBC auth DLL already present: ${target.name}")
+            return
+        }
+
+        try {
+            project.copy {
+                from authDll
+                into nativeDir
+            }
+            logger.lifecycle("Copied JDBC auth DLL to ${target}")
+        } catch (Exception ex) {
+            if (target.exists()) {
+                logger.warn("Could not refresh ${target.name} (file in use); using existing copy.")
+            } else {
+                throw ex
+            }
+        }
+    }
+}
+
+tasks.named('compileJava') {
+    dependsOn tasks.named('copyJdbcAuthDll')
+}
+
+tasks.named('bootRun') {
+    dependsOn tasks.named('copyJdbcAuthDll')
+    jvmArgs "-Djava.library.path=${nativeLibDir.asFile.absolutePath.replace('\\', '/')}"
+}

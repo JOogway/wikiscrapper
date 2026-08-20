@@ -1,0 +1,10 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="WikiscrapperApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <module name="wikiscrapper.main" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.ots.wikiscrapper.WikiscrapperApplication" />
+    <option name="VM_PARAMETERS" value="-Djava.library.path=$PROJECT_DIR$/lib/native" />
+    <method v="2">
+      <option name="Gradle.BeforeRunTask" enabled="true" tasks="copyJdbcAuthDll" externalProjectPath="$PROJECT_DIR$" />
+    </method>
+  </configuration>
+</component>

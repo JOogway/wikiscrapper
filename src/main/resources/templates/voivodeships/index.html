@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html th:lang="${wikiLang.toCode()}" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('voivodeships.title')}"></head>
+<body>
+<header th:replace="~{layout :: nav}"></header>
+<div class="container">
+    <main role="main" class="pb-4">
+        <h1 class="mb-2" th:text="${m['voivodeships.title']}">Polish Voivodeships</h1>
+        <p class="text-muted mb-4" th:text="${ui.t('voivodeships.intro', wikiLang.toDisplayName())}">
+            Wikipedia summaries of the 16 voivodeships.
+        </p>
+
+        <div class="row g-3">
+            <div class="col-md-6 col-xl-4" th:each="voivodeship : ${voivodeships}">
+                <div th:if="${voivodeship.isFetched()}" class="card voivodeship-card" role="button" tabindex="0"
+                     data-bs-toggle="modal" th:attr="data-bs-target='#voivodeship-modal-' + ${voivodeship.id}">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <h2 class="h5 mb-0" th:text="${voivodeship.name}"></h2>
+                            <span class="badge text-bg-success" th:text="${m['common.fetched']}">Fetched</span>
+                        </div>
+                        <p class="card-text mb-2" th:text="${voivodeship.descriptionPreview(160)}"></p>
+                        <small class="text-muted" th:text="${voivodeship.fetchedAtLocal()}"></small>
+                    </div>
+                </div>
+                <div th:if="${!voivodeship.isFetched()}" class="card voivodeship-card is-empty">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <h2 class="h5 mb-0" th:text="${voivodeship.name}"></h2>
+                            <span class="badge text-bg-secondary" th:text="${m['common.notFetched']}">Not fetched</span>
+                        </div>
+                        <p class="card-text text-muted mb-0">
+                            <span th:text="${ui.t('voivodeships.notFetchedYet', wikiLang.toDisplayName())}">Not fetched yet.</span>
+                            <a th:href="@{/}" th:text="${m['voivodeships.runSync']}">Run a sync on the Dashboard</a>
+                            <span th:text="${m['voivodeships.runSyncHint']}">to download this description.</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div th:each="voivodeship : ${voivodeships}" th:if="${voivodeship.isFetched()}" class="modal fade"
+             th:id="'voivodeship-modal-' + ${voivodeship.id}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" th:text="${voivodeship.name}"></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" th:attr="aria-label=${m['common.close']}"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p th:text="${voivodeship.description}"></p>
+                    </div>
+                    <div class="modal-footer justify-content-between">
+                        <small class="text-muted" th:text="${ui.t('voivodeships.fetchedAt', voivodeship.fetchedAtLocal())}">Fetched</small>
+                        <a th:if="${voivodeship.wikiUrl != null}" th:href="${voivodeship.wikiUrl}"
+                           target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary" th:text="${m['common.openOnWikipedia']}">Open on Wikipedia</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+<footer th:replace="~{layout :: footer}"></footer>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html th:lang="${wikiLang.toCode()}" xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(titleKey)">
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title th:text="${m[titleKey]} + ' - WikiScrapper'">WikiScrapper</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" th:href="@{/css/site.css}"/>
+</head>
+<body>
+<header th:fragment="nav">
+    <nav class="navbar navbar-expand-sm navbar-dark bg-dark border-bottom mb-3 sticky-top">
+        <div class="container">
+            <a class="navbar-brand fw-semibold" th:href="@{/}">WikiScrapper</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#main-nav"
+                    aria-controls="main-nav" aria-expanded="false" th:attr="aria-label=${m['nav.toggle']}">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between" id="main-nav">
+                <ul class="navbar-nav flex-grow-1">
+                    <li class="nav-item">
+                        <a class="nav-link" th:classappend="${currentPath == '/'} ? ' active'"
+                           th:href="@{/}" th:text="${m['nav.dashboard']}">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/voivodeships')} ? ' active'"
+                           th:href="@{/voivodeships}" th:text="${m['nav.voivodeships']}">Voivodeships</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/countries')} ? ' active'"
+                           th:href="@{/countries}" th:text="${m['nav.countries']}">Countries</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/logs')} ? ' active'"
+                           th:href="@{/logs}" th:text="${m['nav.logs']}">Logs</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav align-items-center gap-2">
+                    <li class="nav-item">
+                        <label class="visually-hidden" for="wiki-lang" th:text="${m['nav.language']}">Language</label>
+                        <select id="wiki-lang" class="form-select form-select-sm wiki-lang-select" th:attr="aria-label=${m['nav.language']}">
+                            <option value="en" th:selected="${wikiLang.name() == 'En'}">English</option>
+                            <option value="pl" th:selected="${wikiLang.name() == 'Pl'}">Polski</option>
+                        </select>
+                    </li>
+                    <li class="nav-item">
+                        <span id="sync-badge" class="badge text-bg-primary d-none" th:text="${m['nav.syncing']}">Syncing…</span>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/swagger" target="_blank" rel="noopener" th:text="${m['nav.apiDocs']}">API Docs</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+</header>
+<footer th:fragment="footer">
+    <div class="container py-3 border-top footer text-muted" th:text="${m['footer.text']}">
+        WikiScrapper — Wikipedia summaries (English / Polski) of Polish voivodeships and world countries.
+    </div>
+    <script th:inline="javascript">
+        window.WikiScrapperUi = {
+            syncButton: /*[[${m['dashboard.syncButton']}]]*/ 'Synchronize with Wikipedia',
+            syncRunning: /*[[${m['dashboard.syncRunning']}]]*/ 'Synchronizing…',
+            lastSync: /*[[${m['dashboard.lastSync']}]]*/ 'Last sync: {0} succeeded, {1} failed, {2} skipped.',
+            moreErrors: /*[[${m['dashboard.moreErrors']}]]*/ '…and {0} more. See <a href="/logs?level=Error">Logs</a>.',
+            unableReadStatus: /*[[${m['js.unableReadStatus']}]]*/ 'Unable to read sync status.',
+            unableStartSync: /*[[${m['js.unableStartSync']}]]*/ 'Unable to start synchronization.',
+            starting: /*[[${m['js.starting']}]]*/ 'Starting…'
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script th:src="@{/js/site.js}"></script>
+</footer>
+</body>
+</html>

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html th:lang="${wikiLang.toCode()}" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('countries.title')}"></head>
+<body>
+<header th:replace="~{layout :: nav}"></header>
+<div class="container">
+    <main role="main" class="pb-4">
+        <h1 class="mb-2" th:text="${m['countries.title']}">World Countries</h1>
+        <p class="text-muted mb-4" th:text="${ui.t('countries.intro', wikiLang.toDisplayName())}">Wikipedia summaries.</p>
+
+        <form method="get" class="row g-2 mb-4 align-items-end" th:action="@{/countries}" id="countries-filter-form">
+            <div class="col-sm-5 col-md-4">
+                <label class="form-label" for="search" th:text="${m['countries.search']}">Search</label>
+                <div class="position-relative">
+                    <input type="text" id="search" name="search" th:value="${search}" class="form-control pe-5"
+                           th:attr="placeholder=${m['countries.searchPlaceholder']},aria-label=${m['countries.searchAria']}" autocomplete="off"/>
+                    <span id="search-spinner" class="spinner-border spinner-border-sm text-secondary d-none countries-search-spinner"
+                          role="status" aria-hidden="true"></span>
+                </div>
+            </div>
+            <div class="col-sm-3 col-md-2">
+                <label class="form-label" for="fetched" th:text="${m['countries.status']}">Status</label>
+                <select id="fetched" name="fetched" class="form-select">
+                    <option value="" th:selected="${fetched == null}" th:text="${m['common.all']}">All</option>
+                    <option value="yes" th:selected="${fetched == 'yes'}" th:text="${m['common.fetched']}">Fetched</option>
+                    <option value="no" th:selected="${fetched == 'no'}" th:text="${m['common.notFetched']}">Not fetched</option>
+                </select>
+            </div>
+            <div class="col-sm-2 col-md-2">
+                <label class="form-label" for="pageSize" th:text="${m['countries.pageSize']}">Page size</label>
+                <select id="pageSize" name="pageSize" class="form-select">
+                    <option th:each="size : ${pageSizes}" th:value="${size}" th:text="${size}"
+                            th:selected="${!virtualizeAll and paged.pageSize() == size}"></option>
+                    <option value="all" th:selected="${virtualizeAll}" th:text="${m['common.all']}">All</option>
+                </select>
+            </div>
+            <input type="hidden" name="sort" th:value="${sort}"/>
+            <input type="hidden" name="dir" th:value="${dir}"/>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary" th:text="${m['common.apply']}">Apply</button>
+            </div>
+            <div class="col-auto" th:if="${search != null || fetched != null}">
+                <a th:href="@{/countries}" class="btn btn-outline-secondary" th:text="${m['common.clear']}">Clear</a>
+            </div>
+        </form>
+
+        <!-- th:fragment lets live search fetch only this block instead of the whole page. -->
+        <div id="countries-results" th:fragment="results">
+            <div th:if="${virtualizeAll}" id="countries-virtual" class="countries-virtual"
+                 th:attr="data-chunk-size=${chunkSize},
+                          data-total-count=${paged.totalCount()},
+                          data-search=${search},
+                          data-fetched=${fetched},
+                          data-sort=${sort},
+                          data-dir=${dir},
+                          data-lang=${wikiLang.toCode()},
+                          data-dashboard-url=@{/},
+                          data-label-not-fetched=${m['countries.notFetchedRow']},
+                          data-label-dashboard=${m['dashboard.title']},
+                          data-label-loading=${m['countries.loadingChunk']},
+                          data-label-status=${m['countries.virtualStatus']},
+                          data-label-fetched-at=${m['voivodeships.fetchedAt']},
+                          data-label-no-match=${m['countries.noMatch']}">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                    <small id="countries-virtual-status" class="text-muted"></small>
+                    <small id="countries-virtual-loading" class="text-muted d-none" th:text="${m['countries.loadingChunk']}">Loading…</small>
+                </div>
+                <div class="table-responsive countries-virtual-frame">
+                    <table class="table table-striped align-middle table-countries mb-0">
+                        <thead>
+                        <tr>
+                            <th scope="col" class="col-code" th:attr="aria-sort=${view.ariaSort('code')}">
+                                <a class="sort-link" th:href="${view.sortUrl('code')}"><span th:text="${m['countries.code']}">Code</span><span th:text="${view.sortMarker('code')}"></span></a>
+                            </th>
+                            <th scope="col" class="col-name" th:attr="aria-sort=${view.ariaSort('name')}">
+                                <a class="sort-link" th:href="${view.sortUrl('name')}"><span th:text="${m['countries.name']}">Name</span><span th:text="${view.sortMarker('name')}"></span></a>
+                            </th>
+                            <th scope="col" th:text="${m['countries.description']}">Description</th>
+                            <th scope="col" class="col-fetched" th:attr="aria-sort=${view.ariaSort('fetched')}">
+                                <a class="sort-link" th:href="${view.sortUrl('fetched')}"><span th:text="${m['common.fetched']}">Fetched</span><span th:text="${view.sortMarker('fetched')}"></span></a>
+                            </th>
+                        </tr>
+                        </thead>
+                    </table>
+                    <div id="countries-virtual-viewport" class="countries-virtual-viewport" tabindex="0" role="region" th:attr="aria-label=${m['countries.title']}">
+                        <div id="countries-virtual-spacer" class="countries-virtual-spacer">
+                            <table id="countries-virtual-window-table" class="table table-striped align-middle table-countries mb-0 countries-virtual-window-table">
+                                <tbody id="countries-virtual-window"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div th:if="${virtualizeAll}" class="modal fade" id="country-virtual-modal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="country-virtual-modal-title"></h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" th:attr="aria-label=${m['common.close']}"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p id="country-virtual-modal-body"></p>
+                        </div>
+                        <div class="modal-footer justify-content-between">
+                            <small class="text-muted" id="country-virtual-modal-fetched"></small>
+                            <a id="country-virtual-modal-wiki" href="#" target="_blank" rel="noopener"
+                               class="btn btn-sm btn-outline-secondary d-none" th:text="${m['common.openOnWikipedia']}">Open on Wikipedia</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <p th:if="${!virtualizeAll and paged.items().isEmpty()}" class="text-muted">
+                <span th:text="${m['countries.noMatch']}">No countries match the current filters.</span>
+                <span th:if="${fetched == 'no'}">
+                    <a th:href="@{/}" th:text="${m['voivodeships.runSync']}">Run a sync on the Dashboard</a>
+                    <span th:text="${m['countries.runSyncMissing']}">to fetch missing descriptions.</span>
+                </span>
+            </p>
+            <th:block th:if="${!virtualizeAll and !paged.items().isEmpty()}">
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle table-countries">
+                        <thead>
+                        <tr>
+                            <th scope="col" class="col-code" th:attr="aria-sort=${view.ariaSort('code')}">
+                                <a class="sort-link" th:href="${view.sortUrl('code')}"><span th:text="${m['countries.code']}">Code</span><span th:text="${view.sortMarker('code')}"></span></a>
+                            </th>
+                            <th scope="col" class="col-name" th:attr="aria-sort=${view.ariaSort('name')}">
+                                <a class="sort-link" th:href="${view.sortUrl('name')}"><span th:text="${m['countries.name']}">Name</span><span th:text="${view.sortMarker('name')}"></span></a>
+                            </th>
+                            <th scope="col" th:text="${m['countries.description']}">Description</th>
+                            <th scope="col" class="col-fetched" th:attr="aria-sort=${view.ariaSort('fetched')}">
+                                <a class="sort-link" th:href="${view.sortUrl('fetched')}"><span th:text="${m['common.fetched']}">Fetched</span><span th:text="${view.sortMarker('fetched')}"></span></a>
+                            </th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <th:block th:each="country : ${paged.items()}">
+                            <tr th:if="${country.isFetched()}" class="row-clickable" role="button" tabindex="0"
+                                data-bs-toggle="modal" th:attr="data-bs-target='#country-modal-' + ${country.id}">
+                                <td><code th:text="${country.code}"></code></td>
+                                <td class="cell-ellipsis fw-semibold" th:title="${country.name}" th:text="${country.name}"></td>
+                                <td th:text="${country.descriptionPreview(120)}"></td>
+                                <td class="text-nowrap" th:text="${country.fetchedAtLocal()}"></td>
+                            </tr>
+                            <tr th:if="${!country.isFetched()}">
+                                <td><code th:text="${country.code}"></code></td>
+                                <td class="cell-ellipsis fw-semibold" th:title="${country.name}" th:text="${country.name}"></td>
+                                <td>
+                                    <span class="text-muted">
+                                        <span th:text="${m['countries.notFetchedRow']}">Not fetched yet —</span>
+                                        <a th:href="@{/}" th:text="${m['dashboard.title']}">Dashboard</a>
+                                    </span>
+                                </td>
+                                <td class="text-nowrap">—</td>
+                            </tr>
+                        </th:block>
+                        </tbody>
+                    </table>
+                </div>
+
+                <nav th:attr="aria-label=${m['countries.pagination']}" class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <small class="text-muted" th:text="${ui.t('countries.pageOf', paged.page(), paged.totalPages(), paged.totalCount())}">
+                        Page info
+                    </small>
+                    <ul class="pagination mb-0">
+                        <li class="page-item" th:classappend="${paged.hasPrevious()} ? '' : ' disabled'">
+                            <a class="page-link" th:href="${view.pageUrl(paged.page() - 1)}" th:text="${m['common.previous']}">Previous</a>
+                        </li>
+                        <li class="page-item" th:if="${startPage > 1}">
+                            <a class="page-link" th:href="${view.pageUrl(1)}">1</a>
+                        </li>
+                        <li class="page-item disabled" th:if="${startPage > 2}"><span class="page-link">…</span></li>
+                        <li class="page-item" th:each="i : ${#numbers.sequence(startPage, endPage)}"
+                            th:classappend="${i == paged.page()} ? ' active'">
+                            <a class="page-link" th:href="${view.pageUrl(i)}" th:text="${i}"></a>
+                        </li>
+                        <li class="page-item disabled" th:if="${endPage < paged.totalPages() - 1}"><span class="page-link">…</span></li>
+                        <li class="page-item" th:if="${endPage < paged.totalPages()}">
+                            <a class="page-link" th:href="${view.pageUrl(paged.totalPages())}" th:text="${paged.totalPages()}"></a>
+                        </li>
+                        <li class="page-item" th:classappend="${paged.hasNext()} ? '' : ' disabled'">
+                            <a class="page-link" th:href="${view.pageUrl(paged.page() + 1)}" th:text="${m['common.next']}">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+
+                <div th:each="country : ${paged.items()}" th:if="${country.isFetched()}" class="modal fade"
+                     th:id="'country-modal-' + ${country.id}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <span th:text="${country.name}"></span> <code class="ms-2" th:text="${country.code}"></code>
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" th:attr="aria-label=${m['common.close']}"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p th:text="${country.description}"></p>
+                            </div>
+                            <div class="modal-footer justify-content-between">
+                                <small class="text-muted" th:text="${ui.t('voivodeships.fetchedAt', country.fetchedAtLocal())}">Fetched</small>
+                                <a th:if="${country.wikiUrl != null}" th:href="${country.wikiUrl}"
+                                   target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary" th:text="${m['common.openOnWikipedia']}">Open on Wikipedia</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </th:block>
+        </div>
+    </main>
+</div>
+<footer th:replace="~{layout :: footer}"></footer>
+</body>
+</html>
